@@ -1,7 +1,22 @@
 html
     head
         title Krasnoyarsl tourism
+        if (showTests)
+            link(rel="stylesheet", href="/vendor/mocha.css")
+        script(src="/vendor/jquery.min.js")
     body
         header
             img(src="/img/logo.png", alt="Logo Krasnoyarsk tourism")
         block content
+        if (showTests)
+            div(id="mocha")
+                script(src="/vendor/mocha.js")
+                script(src="/vendor/chai.js")
+                script.
+                    mocha.ui('tdd');
+                    var assert = chai.assert;
+                script(src="/qa/tests-global.js")
+                if (pageTestScript)
+                    script(src=""+pageTestScript+"")
+                script.
+                    mocha.run();
