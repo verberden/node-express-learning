@@ -28,6 +28,18 @@ app.get('/about', function(req, res) {
     });
 });
 
+app.get('/tours/enisey-river', function(req, res) {
+    res.render('tours/enisey-river');
+});
+
+app.get('/tours/bobroviy-log', function(req, res) {
+    res.render('tours/bobroviy-log');
+});
+
+app.get('/tours/request-group-rate', function(req, res) {
+    res.render('tours/request-group-rate');
+});
+
 app.use(function (req, res) {
     res.status(404);
     res.render('404', {
