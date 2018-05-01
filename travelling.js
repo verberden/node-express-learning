@@ -1,14 +1,9 @@
 var express = require('express');
 var path = require('path');
 
-let app = express();
+let fortune = require('./lib/fortune.js');
 
-let fortunes = [
-    'Сегодня Вам не повезло',
-    'Возможно, сегодня не Ваш день',
-    'Может быть Вам необходим отдых?',
-    'Упс.. Вероятно Вы ошиблись!'
-]
+let app = express();
 
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
@@ -26,9 +21,8 @@ app.get('/about', function(req, res) {
 });
 
 app.use(function (req, res) {
-    let randomFortune = fortunes[Math.floor(Math.random() * fortunes.length)];
     res.status(404);
-    res.render('404', {fortune: randomFortune});
+    res.render('404', {fortune: fortune.getFortune() });
 });
 
 app.use(function (err, req, res, next) {
