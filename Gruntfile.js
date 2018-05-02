@@ -21,6 +21,6 @@ module.exports = function(grunt) {
                 {cmd: 'linkcheck http://localhost:' + (grunt.option('port') || '3000')},
         },
     });
-    console.log(grunt.option('port'));
+
     grunt.registerTask('default', ['mochaTest', 'jshint', 'exec']);
 };
