@@ -13,6 +13,7 @@
   "author": "S N",
   "license": "MIT",
   "dependencies": {
+    "body-parser": "^1.18.2",
     "express": "^4.16.3",
     "jquery": "^3.3.1",
     "pug": "^2.0.3"

@@ -18,6 +18,8 @@ app.use(function(req, res, next) {
     next();
 });
 
+app.use(require('body-parser').urlencoded({extended: true}));
+
 app.get('/', function(req, res) {
     res.render('home');
 });
@@ -38,6 +40,22 @@ app.get('/tours/bobroviy-log', function(req, res) {
 
 app.get('/tours/request-group-rate', function(req, res) {
     res.render('tours/request-group-rate');
+});
+
+app.get('/newsletter', function(req, res) {
+    res.render('newsletter', {csrf: 'CDSF token goes here'});
+});
+
+app.post('/process', function(req, res) {
+    console.log('Form (from querystring): ' + req.query.form);
+    console.log('CDSF token (from hidden form field): ' + req.body._csrf);
+    console.log('Name (from visible form field): ' + req.body.name);
+    console.log('Email (from visible form field): ' + req.body.email);
+    res.redirect(303, '/thank-you')
+})
+
+app.get('/thank-you', function(req, res) {
+    res.render('thank-you');
 });
 
 app.use(function (req, res) {
