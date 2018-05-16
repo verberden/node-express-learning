@@ -1,0 +1,35 @@
+extends ../layouts/main.pug
+
+block content
+    form(action="/contest/vacation-photo/"+year+"/"+month, method="post", class="form-horizontal", role="form", enctype="multipart/form-data")
+        .form-group
+            label(for="fieldName" class="col-sm-2 control-label") Name
+            .col-sm-4
+                input(type="text" class="form-control" id="fieldName" name="name")
+        .form-group
+            label(for="fieldEmail" class="col-sm-2 control-label") Email
+            .col-sm-4
+                input(type="email" class="form-control" required id="fieldEmail" name="email")
+        .form-group
+            label(class="col-sm-2 control-label") Vacation Photo                
+        .form-group
+            .col-offset-2.col-sm-4
+                span.btn.btn-default.btn-file 
+                    |Upload
+                    input(type="file" class="form-control" required multiple id="fieldPhoto" data-url="/upload" name="photo" accept="image/*")
+                div(id="fileUploads")
+                
+                script(src='/vendor/jqfu/js/vendor/jquery.ui.widget.js')
+                script(src='/vendor/jqfu/js/jquery.iframe-transport.js')
+                script(src='/vendor/jqfu/js/jquery.fileupload.js')
+                script.
+                    $('#fieldPhoto').fileupload({
+                        dataType: 'json',
+                        done: function(e, data) {
+                            $.each(data.result.files, function(index, file) {
+                                $('#fileUploads').append($('<div class="upload">' +
+                                '<span class="glyphicon glyphicon-ok"></span>' +
+                                '&nbsp;' + file.originalName + '</div>'));
+                            });
+                        }
+                    });

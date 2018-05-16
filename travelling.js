@@ -2,16 +2,17 @@ var express = require('express');
 var path = require('path');
 
 var fortune = require('./lib/fortune.js');
+var formidable = require('formidable');
+var jqupload =require('jquery-file-upload-middleware');
 
 var app = express();
-var formidable = require('formidable');
 
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
 
 app.set('port', process.env.PORT || 3000);
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'))); //where to search static files such as .js etc
 
 app.use(function(req, res, next) {
     res.locals.showTests = app.get('env') !== 'production' &&
@@ -71,6 +72,10 @@ app.get('/contest/vacation-photo', function(req, res) {
     });
 });
 
+app.get('/contest/vacation-photo-jq', function(req, res) {
+    res.render('contest/vacation-photo-jq');
+});
+
 app.post('/contest/vacation-photo/:year/:month', function(req, res) {
     var form = new formidable.IncomingForm();
     form.parse(req, function(err, fields, files){
@@ -81,6 +86,18 @@ app.post('/contest/vacation-photo/:year/:month', function(req, res) {
         console.log(files);
         res.redirect(303, '/thank-you'); 
     });
+});
+
+app.use('/upload', function(req, res, next) {
+    var now = Date.now();
+    jqupload.fileHandler({
+        uploadDir: function() {
+            return __dirname + '/public/uploads' + now;
+        },
+        uploadUrl: function() {
+            return '/uploads/' + now;
+        }
+    })(req, res, next);
 });
 
 app.use(function (req, res) {
