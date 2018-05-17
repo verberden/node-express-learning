@@ -1,6 +1,7 @@
 var express = require('express');
 var path = require('path');
 
+var credentials = require('./credentials');
 var fortune = require('./lib/fortune.js');
 var formidable = require('formidable');
 var jqupload =require('jquery-file-upload-middleware');
@@ -19,6 +20,13 @@ app.use(function(req, res, next) {
         req.query.test === '1';
     next();
 });
+
+app.use(require('cookie-parser')(credentials.coockieSecret));
+app.use(require('express-session')({
+    resave: false,
+    saveUninitialized: false,
+    secret: credentials.coockieSecret,
+}));
 
 app.use(require('body-parser').urlencoded({extended: true}));
 
@@ -67,12 +75,17 @@ app.get('/thank-you', function(req, res) {
 
 app.get('/contest/vacation-photo', function(req, res) {
     var now = new Date();
+    req.session.userName = 'Anonymus';
+    res.cookie('signed_mycookie', 'nom nom', { signed: true });
     res.render('contest/vacation-photo', { 
         year: now.getFullYear(), month: now.getMonth()
     });
+    console.log(req.signedCookies.signed_mycookie);
 });
 
 app.get('/contest/vacation-photo-jq', function(req, res) {
+    console.log('jq');
+    console.log(req.session.userName);
     res.render('contest/vacation-photo-jq');
 });
 
