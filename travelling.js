@@ -8,12 +8,16 @@ var jqupload =require('jquery-file-upload-middleware');
 
 var app = express();
 
+var VALID_EMAIL_REGEX = new RegExp('^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$');
+
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
 
 app.set('port', process.env.PORT || 3000);
 
 app.use(express.static(path.join(__dirname, 'public'))); //where to search static files such as .js etc
+
+
 
 app.use(function(req, res, next) {
     res.locals.showTests = app.get('env') !== 'production' &&
@@ -56,6 +60,59 @@ app.get('/newsletter', function(req, res) {
     res.render('newsletter', {csrf: 'CSRF token goes here'});
 });
 
+app.post('/newsletter', function(req, res) {
+    var name = req.body.name || '', email = req.body.email ||'';
+
+    if(!email.match(VALID_EMAIL_REGEX)) {
+        if(req.xhr)
+            return res.json({
+                error: 'Incorrect email address.'
+            });
+        
+        req.session.flash = {
+            type: 'danger',
+            intro: 'Match error!',
+            message: 'Email address you have written is incorrect.'
+        };
+
+        return res.redirect(303, '/newsletter/archive');
+
+    }
+    new NewsletterSignup({name: name, email: email}).save(function(err) {
+        if (err) {
+            if(req.xhr)
+                return res.json({
+                    error: 'Database error.'
+                });
+        
+            req.session.flash = {
+                type: 'danger',
+                intro: 'Database error!',
+                message: 'Database error occure. Please, try again later.'
+            };
+            
+            return res.redirect(303, '/newsletter/archive');
+        }
+
+        if (req.xhr)
+            return res.json({
+                success: true
+            });
+
+        req.session.flash = {
+            type: 'success',
+            intro: 'Thank you!',
+            message: 'You have been subscribed.'
+        };
+        
+        return res.redirect(303, '/newsletter/archive');
+    })
+});
+
+app.get('/newsletter/archive', function(req, res) {
+    res.render('newsletter/archive', {flash: req.session.flash});
+});
+
 app.post('/process', function(req, res) {
     console.log('Form (from querystring): ' + req.query.form);
     console.log('CDSF token (from hidden form field): ' + req.body._csrf);
@@ -84,7 +141,6 @@ app.get('/contest/vacation-photo', function(req, res) {
 });
 
 app.get('/contest/vacation-photo-jq', function(req, res) {
-    console.log('jq');
     console.log(req.session.userName);
     res.render('contest/vacation-photo-jq');
 });
