@@ -1,14 +1,24 @@
 var express = require('express');
 var path = require('path');
-
 var credentials = require('./credentials');
+
+var nodemailer = require('nodemailer');
+var mailTransport = nodemailer.createTransport("smtps://"+credentials.gmail.user+"%40gmail.com:"+encodeURIComponent(credentials.gmail.password) + "@smtp.gmail.com:465");
+    /*'SMTP', {
+    service: 'Gmail',
+    auth: {
+        user: credentials.gmail.user,
+        pass: credentials.gmail.password,
+    }
+});*/
+
 var fortune = require('./lib/fortune.js');
 var formidable = require('formidable');
 var jqupload =require('jquery-file-upload-middleware');
 
 var app = express();
 
-var VALID_EMAIL_REGEX = new RegExp('^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$');
+//var VALID_EMAIL_REGEX = new RegExp('^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$');
 
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
@@ -16,8 +26,6 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('port', process.env.PORT || 3000);
 
 app.use(express.static(path.join(__dirname, 'public'))); //where to search static files such as .js etc
-
-
 
 app.use(function(req, res, next) {
     res.locals.showTests = app.get('env') !== 'production' &&
@@ -35,6 +43,20 @@ app.use(require('express-session')({
 app.use(require('body-parser').urlencoded({extended: true}));
 
 app.get('/', function(req, res) {
+    res.render('home');
+});
+
+app.get('/sendemail', function(req, res) {
+    mailTransport.sendMail({
+        from: '"SN" <endoffme@gmail.com>',
+        to: 'cergiy@yandex.ru',
+        subject: 'Your tour by Enisey river',
+        text: 'Thank you for your reservation in our firm.' + 
+                'We are glad to seeyou soon!',
+    }, function(err) {
+        if(err) console.error('Cannot send the email: ' +err);
+    })
+
     res.render('home');
 });
 
@@ -60,7 +82,7 @@ app.get('/newsletter', function(req, res) {
     res.render('newsletter', {csrf: 'CSRF token goes here'});
 });
 
-app.post('/newsletter', function(req, res) {
+/*app.post('/newsletter', function(req, res) {
     var name = req.body.name || '', email = req.body.email ||'';
 
     if(!email.match(VALID_EMAIL_REGEX)) {
@@ -111,7 +133,7 @@ app.post('/newsletter', function(req, res) {
 
 app.get('/newsletter/archive', function(req, res) {
     res.render('newsletter/archive', {flash: req.session.flash});
-});
+});*/
 
 app.post('/process', function(req, res) {
     console.log('Form (from querystring): ' + req.query.form);
