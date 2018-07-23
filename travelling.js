@@ -1,7 +1,56 @@
 var express = require('express');
 var path = require('path');
 var credentials = require('./credentials');
+var Vacation = require('./models/vacation.js');
+var VacationInSeasonListener = require('./models/vacationInSeasonListener.js');
+Vacation.find(function(err, vacations) {
+    if(err) return console.error(err);
+    if (vacations.length) return;
 
+    new Vacation({
+        name: 'One day river Kacha tour',
+        slug: 'kacha-river-day-trip',
+        category: 'one day trip',
+        sku: 'KR199',
+        description: 'Spend a day on trvelling by Kachc river. Be wild!',
+        priceInCents: 9995,
+        tags: ['one day trip', 'kacha river', 'wild'],
+        inSeason: true,
+        maximumGuests: 16,
+        available: true,
+        packagesSold: 0,
+    }).save();
+
+    new Vacation({
+        name: 'Relaxing near Eniseisk',
+        slug: 'eniseisk-bank-relax',
+        category: 'weekend trip',
+        sku: 'ER39',
+        description: 'Wonderfulle riverbank and fresh air!',
+        priceInCents: 269995,
+        tags: ['weekend trip', 'eniseisk', 'relax'],
+        inSeason: false,
+        maximumGuests: 8,
+        available: true,
+        packagesSold: 0,
+    }).save();
+
+    new Vacation({
+        name: 'Sayani rock climbing',
+        slug: 'sayani-rock-climbing',
+        category: 'adventure',
+        sku: 'S99',
+        description: 'Try yourself mountain climbing.',
+        priceInCents: 289995,
+        tags: ['climbing', 'sayani', 'weekend trip'],
+        inSeason: true,
+        requireWaiver: true,
+        maximumGuests: 4,
+        available: false,
+        packagesSold: 0,
+        notes: 'Guide on this tour is recovering from injury now.',
+    }).save();
+})
 var nodemailer = require('nodemailer');
 var mailTransport = nodemailer.createTransport("smtps://"+credentials.gmail.user+"%40gmail.com:"+encodeURIComponent(credentials.gmail.password) + "@smtp.gmail.com:465");
     /*'SMTP', {
@@ -15,11 +64,35 @@ var mailTransport = nodemailer.createTransport("smtps://"+credentials.gmail.user
 var fortune = require('./lib/fortune.js');
 var formidable = require('formidable');
 var jqupload =require('jquery-file-upload-middleware');
-
+var mongoose = require('mongoose');
+var opts = {
+    server: {
+        socketOptions: {keepAlive: 1 }
+    }
+};
 var app = express();
+var MongoSessionStore = require('session-mongoose')(require('connect'));
+var sessionStore = new MongoSessionStore({ url: credentials.mongo[app.get('env')].connectionString });
 
+app.use(require('cookie-parser')(credentials.coockieSecret));
+app.use(require('express-session')({
+    resave: false,
+    saveUninitialized: false,
+    secret: credentials.coockieSecret,
+    store: sessionStore,
+}));
+
+switch(app.get('env')) {
+    case 'development': 
+        mongoose.connect(credentials.mongo.development.connectionString, opts);
+        break;
+    case 'production':
+        mongoose.connect(credentials.mongo.production.connectionString, opts);
+        break;
+    default:
+        throw new Error('Unknown envinromemt: ' + app.get('env'));
+}
 //var VALID_EMAIL_REGEX = new RegExp('^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$');
-
 app.set('view engine', 'pug');
 app.set('views', path.join(__dirname, 'views'));
 
@@ -32,13 +105,6 @@ app.use(function(req, res, next) {
         req.query.test === '1';
     next();
 });
-
-app.use(require('cookie-parser')(credentials.coockieSecret));
-app.use(require('express-session')({
-    resave: false,
-    saveUninitialized: false,
-    secret: credentials.coockieSecret,
-}));
 
 app.use(require('body-parser').urlencoded({extended: true}));
 
@@ -152,6 +218,16 @@ app.get('/thank-you', function(req, res) {
     res.render('thank-you');
 });
 
+var dataDir = __dirname + '/data';
+var vacationPhotoDir = dataDir + '/vacation-photo';
+var fs = require('fs');
+fs.existsSync(dataDir) || fs.mkdirSync(dataDir);
+fs.existsSync(vacationPhotoDir) || fs.mkdirSync(vacationPhotoDir);
+
+function saveContestEntry(contestName, email, year, month, photoPath) {
+    // TODO
+};
+
 app.get('/contest/vacation-photo', function(req, res) {
     var now = new Date();
     req.session.userName = 'Anonymus';
@@ -170,13 +246,224 @@ app.get('/contest/vacation-photo-jq', function(req, res) {
 app.post('/contest/vacation-photo/:year/:month', function(req, res) {
     var form = new formidable.IncomingForm();
     form.parse(req, function(err, fields, files){
-        if (err) return res.redirect(303, '/error');
-        console.log('recieved fields: ');
-        console.log(fields);
-        console.log('recieved files: ');
-        console.log(files);
-        res.redirect(303, '/thank-you'); 
+        if (err) {
+            res.sessoin.flash = {
+                type: 'danger',
+                intro: 'Ooops!',
+                message: 'There was an error while processing form you have send. Please, try again.'
+            };
+            return res.redirect(303, '/contest/vacation-photo');
+        }
+        var photo = files.photo;
+        var dir = vacationPhotoDir + '/' + Date.now();
+        var path = dir + '/' + photo.name;
+        fs.mkdirSync(dir);
+        fs.renameSync(photo.path, dir + '/' + photo.name);
+        saveContestEntry('vacation-photo', fields.email, req.params.year, req.params.month, path);
+        req.session.flash ={
+            type: 'success',
+            intro: 'Good luck!',
+            message: 'You have become the participant of our contest.'
+        };
+        res.redirect(303, '/contest/vacation-photo/entries'); 
     });
+});
+
+app.get('/contest/vacation-photo/entries', function(req, res){
+	res.render('contest/vacation-photo/entries');
+});
+
+app.get('/vacation/:vacation', function(req, res, next){
+	Vacation.findOne({ slug: req.params.vacation }, function(err, vacation){
+		if(err) return next(err);
+		if(!vacation) return next();
+		res.render('vacation', { vacation: vacation });
+	});
+});
+
+app.get('/set-currency/:currency', function(req, res) {
+    req.session.currency = req.params.currency;
+    return res.redirect(303, '/vacations')
+})
+
+function convertFromUSD(value, currency){
+    switch(currency){
+    	case 'USD': return value * 1;
+        case 'GBP': return value * 0.6;
+        case 'BTC': return value * 0.0023707918444761;
+        default: return NaN;
+    }
+}
+
+app.get('/vacations', function(req, res){
+    Vacation.find({ available: true }, function(err, vacations){
+    	var currency = req.session.currency || 'USD';
+        var context = {
+            currency: currency,
+            vacations: vacations.map(function(vacation){
+                return {
+                    sku: vacation.sku,
+                    name: vacation.name,
+                    description: vacation.description,
+                    inSeason: vacation.inSeason,
+                    price: convertFromUSD(vacation.priceInCents/100, currency),
+                    qty: vacation.qty,
+                };
+            })
+        };
+        switch(currency){
+	    	case 'USD': context.currencyUSD = 'selected'; break;
+	        case 'GBP': context.currencyGBP = 'selected'; break;
+	        case 'BTC': context.currencyBTC = 'selected'; break;
+        }
+        res.render('vacations', context);
+    });
+});
+
+app.post('/vacations', function(req, res){
+    Vacation.findOne({ sku: req.body.purchaseSku }, function(err, vacation){
+        if(err || !vacation) {
+            req.session.flash = {
+                type: 'warning',
+                intro: 'Ooops!',
+                message: 'Something went wrong with your reservation; ' +
+                    'please <a href="/contact">contact us</a>.',
+            };
+            return res.redirect(303, '/vacations');
+        }
+        vacation.packagesSold++;
+        vacation.save();
+        req.session.flash = {
+            type: 'success',
+            intro: 'Thank you!',
+            message: 'Your vacation has been booked.',
+        };
+        res.redirect(303, '/vacations');
+    });
+});
+
+var cartValidation = require('./lib/cartValidation.js');
+
+app.use(cartValidation.checkWaivers);
+app.use(cartValidation.checkGuestCounts);
+
+app.get('/cart/add', function(req, res, next){
+	var cart = req.session.cart || (req.session.cart = { items: [] });
+	Vacation.findOne({ sku: req.query.sku }, function(err, vacation){
+		if(err) return next(err);
+		if(!vacation) return next(new Error('Unknown vacation SKU: ' + req.query.sku));
+		cart.items.push({
+			vacation: vacation,
+			guests: req.body.guests || 1,
+		});
+		res.redirect(303, '/cart');
+	});
+});
+app.post('/cart/add', function(req, res, next){
+	var cart = req.session.cart || (req.session.cart = { items: [] });
+	Vacation.findOne({ sku: req.body.sku }, function(err, vacation){
+		if(err) return next(err);
+		if(!vacation) return next(new Error('Unknown vacation SKU: ' + req.body.sku));
+		cart.items.push({
+			vacation: vacation,
+			guests: req.body.guests || 1,
+		});
+		res.redirect(303, '/cart');
+	});
+});
+app.get('/cart', function(req, res, next){
+    var cart = req.session.cart;
+    console.log(cart);
+	if(!cart) next();
+	res.render('cart', { cart: cart });
+});
+app.get('/cart/checkout', function(req, res, next){
+	var cart = req.session.cart;
+	if(!cart) next();
+	res.render('cart-checkout');
+});
+app.get('/cart/thank-you', function(req, res){
+	res.render('cart-thank-you', { cart: req.session.cart });
+});
+app.get('/email/cart/thank-you', function(req, res){
+	res.render('email/cart-thank-you', { cart: req.session.cart, layout: null });
+});
+app.post('/cart/checkout', function(req, res){
+	var cart = req.session.cart;
+	if(!cart) next(new Error('Cart does not exist.'));
+	var name = req.body.name || '', email = req.body.email || '';
+	// input validation
+	if(!email.match(VALID_EMAIL_REGEX)) return res.next(new Error('Invalid email address.'));
+	// assign a random cart ID; normally we would use a database ID here
+	cart.number = Math.random().toString().replace(/^0\.0*/, '');
+	cart.billing = {
+		name: name,
+		email: email,
+	};
+    res.render('email/cart-thank-you', 
+    	{ layout: null, cart: cart }, function(err,html){
+	        if( err ) console.log('error in email template');
+	        emailService.send(cart.billing.email,
+	        	'Thank you for booking your trip with Meadowlark Travel!',
+	        	html);
+	    }
+    );
+    res.render('cart-thank-you', { cart: cart });
+});
+
+app.get('/notify-me-when-in-season', function(req, res) {
+    VacationInSeasonListener.update(
+        { email: req.body.email },
+        { $push: { skus : req.body.sku } },
+        { upsert: true },
+        function(err) {
+            if (err) {
+                console.log(err.stack);
+                req.session.flash = {
+                    type: 'danger',
+                    intro: 'Oops!',
+                    message: 'An error occurred while processing the request.'
+                };
+                return res.redirect(303, '/vacations');
+            }
+            req.session.flash = {
+                type: 'success',
+                intro: 'Thank you!',
+                message: 'You will be notified when the season comes for this tour.'
+            };
+            return res.redirect(303, '/vacations');
+        }
+    );
+});
+
+app.post('/notify-me-when-in-season', function(req, res){
+    VacationInSeasonListener.update(
+        { email: req.body.email }, 
+        { $push: { skus: req.body.sku } },
+        { upsert: true },
+	    function(err){
+	        if(err) {
+	        	console.error(err.stack);
+	            req.session.flash = {
+	                type: 'danger',
+	                intro: 'Ooops!',
+	                message: 'There was an error processing your request.',
+	            };
+	            return res.redirect(303, '/vacations');
+	        }
+	        req.session.flash = {
+	            type: 'success',
+	            intro: 'Thank you!',
+	            message: 'You will be notified when this vacation is in season.',
+	        };
+	        return res.redirect(303, '/vacations');
+	    }
+	);
+});
+
+app.get('/set-currency/:currency', function(req,res){
+    req.session.currency = req.params.currency;
+    return res.redirect(303, '/vacations');
 });
 
 app.use('/upload', function(req, res, next) {

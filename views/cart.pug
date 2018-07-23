@@ -1,0 +1,21 @@
+extends layouts/main.pug
+
+block content
+    h1 Your Shopping Cart
+        if cart.errors
+            each error in cart.errors
+                .alert.alert-danger error
+        if cart.warnings
+            each warning in cart.warnings
+                .alert.alert-warning warning
+    table(class="table table-striped")
+        thead
+            tr
+                td Vacation
+                td Guests
+        tbody
+            each item in cart.items
+                tr
+                    td #{item.vacation.name}
+                    td #{item.guests}
+    a(class="btn btn-primary" href="/cart/checkout") Checkout
