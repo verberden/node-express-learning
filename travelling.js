@@ -478,6 +478,68 @@ app.use('/upload', function(req, res, next) {
     })(req, res, next);
 });
 
+var Attraction = require('./models/attraction.js');
+
+var apiOptions = {
+    context: '/',
+    domain: require('domain').create(),
+};
+var bodyParser = require('body-parser');
+var vhost = require('vhost');
+var Rest = require('connect-rest');
+app.use( bodyParser.urlencoded( { extended: true } ) ).use( bodyParser.json() );
+
+var rest = Rest.create(apiOptions);
+app.use(vhost('api.*',rest.processRequest()));
+rest.get('attractions', async function(req, content){
+    await Attraction.find({ approved: true }, function(err, attractions){
+        if(err) return { error: 'Internal error.' };
+        if (attractions.length < 1) {
+        } else {
+            attractions.map(function(a){
+                console.log(a);
+                return {
+                    name: a.name,
+                    description: a.description,
+                    location: a.location,
+                };
+            });
+        }
+    });
+});
+
+rest.post('attraction', async function(req, content){
+    var a = new Attraction({
+        name: req.body.name,
+        description: req.body.description,
+        location: { lat: req.body.lat, lng: req.body.lng },
+        history: {
+            event: 'created',
+            email: req.body.email,
+            date: new Date(),
+        },
+        approved: false,
+    });
+    await a.save(function(err, a){
+        if(err) return { error: 'Unable to add attraction.' };
+    });
+
+    return {id: a._id};
+});
+
+rest.get('attraction/:id', async function(req, content){
+    let name, description, location;
+    await Attraction.findById(req.params.id, function(err, a){
+        if(err) return { error: 'Unable to retrieve attraction.' };
+        ({ name, description, location } = a);
+    });
+    return { 
+        name,
+        description,
+        location,
+    };
+});
+
 app.use(function (req, res) {
     res.status(404);
     res.render('404', {
@@ -485,11 +547,21 @@ app.use(function (req, res) {
     });
 });
 
-app.use(function (err, req, res, next) {
+app.use( function(req, res, next){
+	if(req.session)
+		req.session.destroy()
+	// render error page by some renderer...
+	renderer.render( 'error', {}, function(err, html){
+		res.writeHead( 500, { 'Content-Type' : 'text/html' } )
+		res.end( html );
+	} )
+} );
+
+/*app.use(function (err, req, res, next) {
     console.log(err.stack);
     res.status(500);
     res.render('500');
-});
+});*/
 
 app.listen(app.get('port'), function() {
     console.log('Express started at http://localhost:' +
