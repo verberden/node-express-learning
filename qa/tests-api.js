@@ -45,7 +45,6 @@ suite('API tests', function() {
                 if (result.response.statusCode == 200) {
                 rest.get(base + '/attraction/' + result.data.id).then(function(result) {
                     if (result.response.statusCode == 200) {
-                        console.log(result)
 					    assert(result.data.name===attraction.name);
                         assert(result.data.description===attraction.description);
                         done();
