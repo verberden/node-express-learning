@@ -27,7 +27,7 @@
     "mongoose": "^4.13.14",
     "node-gyp": "^2.0.2",
     "nodemailer": "^4.6.7",
-    "pug": "^2.0.3",
+    "pug": "^3.0.1",
     "restling": "^0.9.1",
     "session-mongoose": "^0.4.1",
     "vhost": "^3.0.2"
