@@ -25,7 +25,7 @@
     "jquery": "^3.3.1",
     "jquery-file-upload-middleware": "^0.1.8",
     "mongoose": "^4.13.14",
-    "node-gyp": "^2.0.2",
+    "node-gyp": "^9.3.0",
     "nodemailer": "^4.6.7",
     "pug": "^2.0.3",
     "restling": "^0.9.1",
